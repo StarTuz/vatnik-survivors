@@ -16,9 +16,11 @@ The game works in any modern web browser. Google Chrome, Firefox, or Microsoft E
 To enable the live deployment at `https://<your-username>.github.io/vatnik-survivors/`, follow these steps on GitHub:
 
 1. Go to your repository **Settings** tab.
-2. Click **Pages** in the left sidebar.
-3. Under **Build and deployment** > **Source**, change it from "Deploy from a branch" to **"GitHub Actions"**.
-4. The game will now deploy automatically on every push! 🚀
+2. Click **Actions** > **General** in the left sidebar.
+3. Scroll to the bottom to **Workflow permissions**, select **"Read and write permissions"**, and click **Save**.
+4. Go to **Settings** > **Pages**.
+5. Under **Build and deployment** > **Source**, set it to **"GitHub Actions"**.
+6. Your game will now deploy automatically on the next push! 🚀
 
 ## Controls 🎮
 

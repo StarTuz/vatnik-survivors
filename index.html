@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vatnik Survivors - NAFO Fella Defends the Truth</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #hud {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: bold;
+        }
+
+        #ability-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .cooldown-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            font-size: 0.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .cooldown-pill.ready {
+            border-color: #4da3ff;
+            color: #4da3ff;
+            box-shadow: 0 0 10px rgba(77, 163, 255, 0.3);
+        }
+
+        #health-container {
+            width: 300px;
+        }
+
+        #health-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: #441111;
+            border-radius: 6px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        #health-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff4d4d, #ff0000);
+            transition: width 0.3s ease-out;
+        }
+
+        #xp-bar-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        #xp-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #4da3ff, #007bff);
+            transition: width 0.2s ease-out;
+        }
+
+        #timer {
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+
+        #level-up-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px solid #4da3ff;
+            text-align: center;
+            display: none;
+            pointer-events: auto;
+        }
+
+        #death-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(40, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        #death-screen h1 {
+            font-size: 3rem;
+            color: #ff4d4d;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 77, 77, 0.5);
+        }
+
+        .restart-btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: #4da3ff;
+            border: none;
+            color: white;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .restart-btn:hover {
+            transform: scale(1.1);
+            background: #007bff;
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.5);
+        }
+
+        #high-score-tag {
+            color: #ffcc33;
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        #easter-egg {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 0.8rem;
+            opacity: 0.3;
+            color: #4da3ff;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui-layer">
+        <div id="xp-bar-bg">
+            <div id="xp-bar-fill"></div>
+        </div>
+        <div id="hud">
+            <div id="health-container" class="hud-item">
+                <div id="level-text">LEVEL 1</div>
+                <div id="health-bar-bg">
+                    <div id="health-bar-fill"></div>
+                </div>
+                <div id="ability-container">
+                    <div id="starlink-cd" class="cooldown-pill ready">STARLINK [SPACE]</div>
+                </div>
+            </div>
+            <div id="timer" class="hud-item">00:00</div>
+            <div id="score" class="hud-item">SCORE: 0</div>
+        </div>
+
+        <div id="level-up-modal">
+            <h2>LEVEL UP!</h2>
+            <p>Choose an upgrade</p>
+            <div id="upgrade-options"></div>
+        </div>
+
+        <div id="death-screen">
+            <h1 id="death-msg">VATNIKS OVERRAN THE FELLA!</h1>
+            <div class="hud-item" style="font-size: 1.5rem;">Score: <span id="final-score">0</span></div>
+            <div id="high-score-tag">High Score: <span id="high-score-val">0</span></div>
+            <button class="restart-btn" onclick="location.reload()">REPLOY FELLA</button>
+            <div id="easter-egg"></div>
+        </div>
+    </div>
+
+    <!-- Three.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js" crossorigin="anonymous"
+        onerror="alert('CRITICAL: Three.js failed to load from CDN. Check internet or CORS.')"></script>
+
+    <script>
+        // --- Safety Guardrails & Global Handlers ---
+        window.onerror = function (msg, url, line, col, err) {
+            console.error(`VatnikSurvivors Global Error: ${msg} at ${url}:${line}:${col}`, err);
+            return false;
+        };
+        window.addEventListener('unhandledrejection', e => {
+            console.error('Unhandled Promise Rejection:', e.reason);
+        });
+
+        const DEBUG = true;
+        function assert(condition, message = 'Assertion failed') {
+            if (DEBUG && !condition) {
+                console.error(message);
+                debugger;
+            }
+        }
+
+        const TESTS = {};
+        const MAX_ENEMIES = 200;
+
+        // Reset local storage if needed to break alert loops
+        if (localStorage.getItem('vatnik_reset_needed')) {
+            localStorage.clear();
+            console.log("Local storage cleared.");
+        }
+
+        // Game Constants & State
+        const ARENA_SIZE = 100;
+        const PLAYER_SPEED = 15;
+        const FRICTION = 0.92;
+
+        let state = {
+            paused: false,
+            gameOver: false,
+            time: 0,
+            score: 0,
+            level: 1,
+            xp: 0,
+            maxXp: 100,
+            health: 100,
+            maxHealth: 100,
+            keys: {},
+            lastLevelUpTime: 0
+        };
+
+        // Three.js Core Components
+        let scene, camera, renderer, clock;
+        let player, ground, weaponGroup, auraMesh, starlinkBeam;
+        let playerVelocity;
+
+        // Object Pools/Groups
+        const enemies = [];
+        const projectiles = [];
+        const expOrbs = [];
+        const weapons = [];
+        const particles = [];
+
+        function runTests() {
+            console.group('Vatnik Survivors Smoke Tests');
+            Object.keys(TESTS).forEach(key => {
+                try {
+                    TESTS[key]();
+                    console.log(`%c[PASS] ${key}`, 'color: green; font-weight: bold;');
+                } catch (e) {
+                    console.error(`%c[FAIL] ${key}`, 'color: red; font-weight: bold;', e);
+                }
+            });
+            console.groupEnd();
+        }
+
+        // --- Test Definitions ---
+        TESTS.playerMovement = () => {
+            assert(player, 'Player missing');
+            const startX = player.position.x;
+            state.keys['d'] = true;
+            updatePlayer(0.1);
+            state.keys['d'] = false;
+            assert(player.position.x !== startX, 'Player should move when RIGHT key pressed');
+        };
+
+        TESTS.garlicOrbit = () => {
+            assert(weaponGroup, 'Weapon group missing');
+            const startRot = weaponGroup.rotation.y;
+            const garlic = weapons.find(w => w.type === 'garlic');
+            if (garlic && garlic.update) garlic.update(0.1);
+            assert(weaponGroup.rotation.y !== startRot, 'Garlic orbit should rotate');
+        };
+
+        TESTS.starlinkCooldown = () => {
+            const sw = weapons.find(w => w.type === 'starlink');
+            assert(sw, 'Starlink weapon missing');
+            assert(state.time - sw.lastFired >= sw.cooldown, 'Starlink should be ready initially');
+        };
+
+        TESTS.enemyRegistry = () => {
+            assert(Array.isArray(enemies), 'Enemies should be an array');
+        };
+
+        TESTS.visualSmoke = () => {
+            if (!renderer) return;
+            const data = renderer.domElement.toDataURL();
+            assert(data.length > 100, 'Canvas should export data');
+            console.log('Visual Hash (Length):', data.length);
+        };
+
+        TESTS.collisionDamage = () => {
+            const startHealth = state.health;
+            takeDamage(10);
+            assert(state.health < startHealth, 'Health should decrease on damage');
+        };
+
+        TESTS.levelUpTrigger = () => {
+            const startLevel = state.level;
+            state.xp = state.maxXp + 1;
+            levelUp();
+            assert(state.level === startLevel + 1, 'Level should increment after XP gain');
+        };
+
+        TESTS.garlicDamage = () => {
+            spawnEnemy('vatnik', true);
+            const enemy = enemies[enemies.length - 1];
+            assert(enemy, 'Enemy failed to spawn for test');
+            const startHp = enemy.hp;
+            // Simulate high damage to ensure it works
+            enemy.hp -= 100;
+            updateEnemies(0.1);
+            assert(!enemies.includes(enemy), 'Enemy should be removed when HP reaches 0');
+        };
+
+        function init() {
+            try {
+                console.log("Initializing Game...");
+                playerVelocity = new THREE.Vector3();
+
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x050505);
+
+                const aspect = window.innerWidth / window.innerHeight;
+                const d = 20;
+                camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+                camera.position.set(0, 50, 0);
+                camera.lookAt(0, 0, 0);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                document.body.appendChild(renderer.domElement);
+
+                clock = new THREE.Clock();
+
+                // Lights
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 20, 10);
+                scene.add(directionalLight);
+
+                // Ground
+                const groundGeometry = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2);
+                const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x1a2a1a, side: THREE.DoubleSide });
+                ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                scene.add(ground);
+
+                // Grid
+                const grid = new THREE.GridHelper(ARENA_SIZE * 2, 40, 0x444444, 0x222222);
+                scene.add(grid);
+
+                // Shiba Model (Group)
+                player = new THREE.Group();
+                const shibaMat = new THREE.MeshPhongMaterial({ color: 0xffcc33 });
+
+                const body = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 24), shibaMat);
+                player.add(body);
+
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 24), shibaMat);
+                head.position.set(0, 0.6, 0.4);
+                player.add(head);
+
+                const earGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
+                const earL = new THREE.Mesh(earGeo, shibaMat);
+                earL.position.set(-0.2, 1.0, 0.4);
+                earL.rotation.z = -0.2;
+                player.add(earL);
+
+                const earR = new THREE.Mesh(earGeo, shibaMat);
+                earR.position.set(0.2, 1.0, 0.4);
+                earR.rotation.z = 0.2;
+                player.add(earR);
+
+                const tail = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), shibaMat);
+                tail.position.set(0, 0.2, -0.7);
+                player.add(tail);
+
+                player.position.y = 0.8;
+                scene.add(player);
+
+                weaponGroup = new THREE.Group();
+                player.add(weaponGroup);
+
+                initGarlic();
+                initAura();
+                initStarlink();
+
+                window.addEventListener('keydown', e => {
+                    state.keys[e.key.toLowerCase()] = true;
+                    if (e.code === 'Space') fireStarlink();
+                });
+                window.addEventListener('keyup', e => state.keys[e.key.toLowerCase()] = false);
+                window.addEventListener('resize', onWindowResize);
+
+                // Safety: Key to run tests manually
+                window.addEventListener('keydown', e => {
+                    if (e.key.toLowerCase() === 't') runTests();
+                });
+
+                // URL Param auto-test
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('test') === '1') {
+                    console.log("Auto-running tests via URL param...");
+                    setTimeout(() => {
+                        runTests();
+                        state.paused = true;
+                    }, 500);
+                }
+
+                animate();
+                console.log("Game initialized and running.");
+            } catch (err) {
+                console.error("Critical Init Error:", err);
+                const errDiv = document.createElement('div');
+                errDiv.style = "position:absolute; top:50%; width:100%; text-align:center; color:red; font-family:sans-serif; background:rgba(0,0,0,0.8); padding:20px;";
+                errDiv.innerHTML = `<h1>CRITICAL FAILURE</h1><p>${err.message}</p><p>Check Console for trace.</p>`;
+                document.body.appendChild(errDiv);
+            }
+        }
+
+        function initGarlic() {
+            const count = 4;
+            const radius = 3;
+            const geo = new THREE.SphereGeometry(0.4, 16, 16);
+            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 });
+            for (let i = 0; i < count; i++) {
+                const mesh = new THREE.Mesh(geo, mat);
+                const angle = (i / count) * Math.PI * 2;
+                mesh.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                weaponGroup.add(mesh);
+            }
+            weapons.push({
+                type: 'garlic', count, radius, speedMult: 1, damage: 25, cooldown: 0.5, lastHit: {},
+                update: (delta) => { weaponGroup.rotation.y += delta * 2 * (weapons.find(w => w.type === 'garlic').speedMult || 1); }
+            });
+        }
+
+        function initAura() {
+            const auraGeo = new THREE.TorusGeometry(5, 0.05, 8, 50);
+            const auraMat = new THREE.MeshBasicMaterial({ color: 0x4da3ff, transparent: true, opacity: 0.2 });
+            auraMesh = new THREE.Mesh(auraGeo, auraMat);
+            auraMesh.rotation.x = Math.PI / 2;
+            player.add(auraMesh);
+            weapons.push({
+                type: 'aura', radius: 5, damage: 10, update: () => {
+                    const scale = 1 + Math.sin(Date.now() * 0.005) * 0.05;
+                    auraMesh.scale.set(scale, scale, scale);
+                }
+            });
+        }
+
+        function initStarlink() {
+            const beamGeo = new THREE.CylinderGeometry(0.3, 0.3, 200);
+            const beamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+            starlinkBeam = new THREE.Mesh(beamGeo, beamMat);
+            starlinkBeam.rotation.z = Math.PI / 2;
+            scene.add(starlinkBeam);
+            weapons.push({ type: 'starlink', cooldown: 5, active: false, lastFired: -100, damage: 200, duration: 0.5, width: 1 });
+        }
+
+        function fireStarlink() {
+            const w = weapons.find(w => w.type === 'starlink');
+            if (state.time - w.lastFired < w.cooldown) return;
+            w.lastFired = state.time;
+            w.active = true;
+            playSound('starlink');
+            starlinkBeam.position.copy(player.position);
+            starlinkBeam.position.y = 0.5;
+            starlinkBeam.material.opacity = 1.0;
+            starlinkBeam.scale.x = w.width || 1;
+            starlinkBeam.scale.z = w.width || 1;
+            setTimeout(() => { w.active = false; starlinkBeam.material.opacity = 0; }, w.duration * 1000);
+        }
+
+        let _zTexture;
+        function getZTexture() {
+            if (_zTexture) return _zTexture;
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ff3333'; ctx.fillRect(0, 0, 64, 64);
+            ctx.strokeStyle = 'black'; ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(10, 10); ctx.lineTo(54, 10); ctx.lineTo(10, 54); ctx.lineTo(54, 54);
+            ctx.stroke();
+            _zTexture = new THREE.CanvasTexture(canvas);
+            return _zTexture;
+        }
+
+        let waveCount = 0;
+        function spawnWave() {
+            waveCount++;
+            const count = 10 + waveCount * 5;
+            for (let i = 0; i < count; i++) spawnEnemy('vatnik', true);
+            playSound('levelup');
+        }
+
+        let lastSpawnFrame = 0;
+        let enemiesSpawnedThisFrame = 0;
+
+        function spawnEnemy(forcedType = null, isWave = false) {
+            try {
+                // Spam control
+                if (!isWave) {
+                    const now = Date.now();
+                    if (enemies.length >= MAX_ENEMIES) {
+                        if (DEBUG) console.warn(`Enemy cap reached (${enemies.length}/${MAX_ENEMIES}) - possible performance issue`);
+                        return;
+                    }
+                    if (now === lastSpawnFrame) {
+                        if (enemiesSpawnedThisFrame > 5) return;
+                        enemiesSpawnedThisFrame++;
+                    } else {
+                        lastSpawnFrame = now;
+                        enemiesSpawnedThisFrame = 1;
+                    }
+                }
+
+                const angle = Math.random() * Math.PI * 2;
+                const dist = isWave ? 30 : 40;
+                const x = player.position.x + Math.cos(angle) * dist;
+                const z = player.position.z + Math.sin(angle) * dist;
+
+                let type = forcedType;
+                if (!type) {
+                    const r = Math.random();
+                    if (state.time > 60 && r > 0.95) type = 'ztank';
+                    else if (state.time > 30 && r > 0.8) type = 'bot';
+                    else type = 'vatnik';
+                }
+
+                let geo, mat, hp, speed;
+                if (type === 'ztank') {
+                    geo = new THREE.CylinderGeometry(1.2, 1.2, 2, 8);
+                    mat = new THREE.MeshPhongMaterial({ color: 0x666666, map: getZTexture() });
+                    hp = 150; speed = 1.5;
+                } else if (type === 'bot') {
+                    geo = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
+                    mat = new THREE.MeshPhongMaterial({ color: 0x999999, map: getZTexture() });
+                    hp = 30; speed = 2.5;
+                } else {
+                    geo = new THREE.BoxGeometry(1, 1, 1);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff3333, map: getZTexture() });
+                    hp = 50; speed = 4 + Math.random() * 2;
+                }
+
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, geo.parameters.height ? geo.parameters.height / 2 : 0.5, z);
+                scene.add(mesh);
+                enemies.push({ mesh, hp, speed, type, lastShot: state.time, id: Math.random().toString(36).substr(2, 9) });
+            } catch (err) {
+                console.error('VatnikSurvivors EnemySpawn Error:', err);
+            }
+        }
+
+        function updateEnemies(delta) {
+            const sw = weapons.find(w => w.type === 'starlink');
+            const aura = weapons.find(w => w.type === 'aura');
+            const garlic = weapons.find(w => w.type === 'garlic');
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                if (!e || !e.mesh || !e.mesh.position) continue;
+                const dir = new THREE.Vector3().subVectors(player.position, e.mesh.position).normalize();
+                const dist = e.mesh.position.distanceTo(player.position);
+
+                if (e.type === 'bot') {
+                    if (dist > 15) e.mesh.position.addScaledVector(dir, e.speed * delta);
+                    else if (dist < 10) e.mesh.position.addScaledVector(dir, -e.speed * delta);
+                    if (state.time - e.lastShot > 3) { spawnProjectile(e.mesh.position, dir); e.lastShot = state.time; }
+                } else {
+                    if (dist < aura.radius) {
+                        e.hp -= aura.damage * delta;
+                        e.mesh.position.addScaledVector(dir, -e.speed * 0.6 * delta);
+                    } else {
+                        e.mesh.position.addScaledVector(dir, e.speed * delta);
+                    }
+                }
+                e.mesh.lookAt(player.position);
+
+                if (dist < 1.4) takeDamage(15 * delta);
+
+                weaponGroup.children.forEach(g => {
+                    const gPos = new THREE.Vector3();
+                    g.getWorldPosition(gPos);
+                    if (e.mesh.position.distanceTo(gPos) < 1.5) {
+                        const now = Date.now();
+                        if (!garlic.lastHit[e.id] || now - garlic.lastHit[e.id] > garlic.cooldown * 1000) {
+                            e.hp -= garlic.damage;
+                            garlic.lastHit[e.id] = now;
+                            e.mesh.material.emissive.set(0xff0000);
+                            setTimeout(() => { if (e.mesh) e.mesh.material.emissive.set(0x000000); }, 100);
+                        }
+                    }
+                });
+
+                if (sw.active && Math.abs(e.mesh.position.z - starlinkBeam.position.z) < 1.0) {
+                    e.hp -= sw.damage * delta * 5;
+                    e.mesh.material.emissive.set(0xffffff);
+                    setTimeout(() => { if (e.mesh) e.mesh.material.emissive.set(0x000000); }, 50);
+                }
+
+                if (e.hp <= 0) {
+                    spawnKillParticles(e.mesh.position);
+                    if (e.type === 'ztank') { for (let k = 0; k < 2; k++) spawnEnemy('vatnik', true); }
+                    spawnExpOrb(e.mesh.position);
+                    scene.remove(e.mesh);
+                    enemies.splice(i, 1);
+                    state.score += (e.type === 'ztank' ? 50 : 10);
+                }
+            }
+        }
+
+        function spawnExpOrb(pos) {
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshPhongMaterial({ color: 0x4da3ff, emissive: 0x002244 }));
+            orb.position.copy(pos); orb.position.y = 0.3;
+            scene.add(orb);
+            expOrbs.push(orb);
+        }
+
+        function spawnProjectile(pos, dir) {
+            const m = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            m.position.copy(pos);
+            scene.add(m);
+            projectiles.push({ mesh: m, dir: dir.clone(), life: 5 });
+        }
+
+        function updateProjectiles(delta) {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.mesh.position.addScaledVector(p.dir, 12 * delta);
+                p.life -= delta;
+                if (p.mesh.position.distanceTo(player.position) < 1) { takeDamage(10); p.life = 0; }
+                if (p.life <= 0) { scene.remove(p.mesh); projectiles.splice(i, 1); }
+            }
+        }
+
+        function spawnKillParticles(pos) {
+            for (let i = 0; i < 12; i++) {
+                const p = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                p.position.copy(pos);
+                scene.add(p);
+                particles.push({ mesh: p, vel: new THREE.Vector3((Math.random() - 0.5) * 10, Math.random() * 5, (Math.random() - 0.5) * 10), life: 1 });
+            }
+        }
+
+        function updateParticles(delta) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.addScaledVector(p.vel, delta);
+                p.vel.y -= 9.8 * delta;
+                p.life -= delta;
+                p.mesh.scale.setScalar(p.life);
+                if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+            }
+        }
+
+        function updateOrbs(delta) {
+            for (let i = expOrbs.length - 1; i >= 0; i--) {
+                const orb = expOrbs[i];
+                const d = orb.position.distanceTo(player.position);
+                if (d < 6) orb.position.addScaledVector(new THREE.Vector3().subVectors(player.position, orb.position).normalize(), 18 * delta);
+                if (d < 1.2) { scene.remove(orb); expOrbs.splice(i, 1); state.xp += 25; if (state.xp >= state.maxXp) levelUp(); }
+            }
+        }
+
+        let audioCtx;
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                if (type === 'hit') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(); osc.stop(now + 0.1);
+                } else if (type === 'starlink') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.linearRampToValueAtTime(200, now + 0.5);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                    osc.start(); osc.stop(now + 0.5);
+                } else if (type === 'levelup') {
+                    [440, 554, 659].forEach((f, i) => {
+                        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+                        o.connect(g); g.connect(audioCtx.destination); o.frequency.value = f;
+                        g.gain.setValueAtTime(0, now + i * 0.1); g.gain.linearRampToValueAtTime(0.1, now + i * 0.1 + 0.05); g.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.3);
+                        o.start(now + i * 0.1); o.stop(now + i * 0.1 + 0.3);
+                    });
+                }
+            } catch (e) { console.warn(e); }
+        }
+
+        const UPGRADES = [
+            { id: 'garlic_count', name: 'More Garlic', desc: '+2 orbiting memes' },
+            { id: 'garlic_speed', name: 'Meme Frenzy', desc: '50% faster orbit speed' },
+            { id: 'aura_size', name: 'Verified Shield', desc: 'Whitelist Aura +1 radius' },
+            { id: 'starlink_overcharge', name: 'Starlink Uplink', desc: '-1s cooldown & wider beam' },
+            { id: 'max_health', name: 'Hardened Shiba', desc: '+25 Max HP & Heal' }
+        ];
+
+        function levelUp() {
+            state.level++; state.xp -= state.maxXp; state.maxXp *= 1.15;
+            state.health = Math.min(state.maxHealth, state.health + 20);
+            playSound('levelup');
+            showUpgradeModal();
+        }
+
+        function showUpgradeModal() {
+            state.paused = true;
+            const modal = document.getElementById('level-up-modal');
+            const optionsDiv = document.getElementById('upgrade-options');
+            optionsDiv.innerHTML = '';
+            const shuffled = [...UPGRADES].sort(() => 0.5 - Math.random());
+            shuffled.slice(0, 3).forEach(upg => {
+                const card = document.createElement('div');
+                card.className = 'upgrade-card';
+                card.style = "background: rgba(255,255,255,0.1); margin:10px; padding:20px; border-radius:12px; cursor:pointer;";
+                card.innerHTML = `<h3>${upg.name}</h3><p>${upg.desc}</p>`;
+                card.onclick = () => applyUpgrade(upg.id);
+                optionsDiv.appendChild(card);
+            });
+            modal.style.display = 'block';
+        }
+
+        function applyUpgrade(id) {
+            if (id === 'garlic_count') {
+                const w = weapons.find(w => w.type === 'garlic'); w.count += 2;
+                weaponGroup.clear();
+                const geo = new THREE.SphereGeometry(0.3, 16, 16);
+                const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x333333 });
+                for (let i = 0; i < w.count; i++) {
+                    const m = new THREE.Mesh(geo, mat); const a = (i / w.count) * Math.PI * 2;
+                    m.position.set(Math.cos(a) * w.radius, 0, Math.sin(a) * w.radius);
+                    weaponGroup.add(m);
+                }
+            } else if (id === 'garlic_speed') {
+                const w = weapons.find(w => w.type === 'garlic'); w.speedMult = (w.speedMult || 1) * 1.5;
+            } else if (id === 'aura_size') {
+                const w = weapons.find(w => w.type === 'aura'); w.radius += 1;
+                auraMesh.scale.x = w.radius / 5; auraMesh.scale.z = w.radius / 5;
+            } else if (id === 'starlink_overcharge') {
+                const w = weapons.find(w => w.type === 'starlink'); w.cooldown = Math.max(1, w.cooldown - 1); w.width = (w.width || 1) * 1.5;
+            } else if (id === 'max_health') {
+                state.maxHealth += 25; state.health += 25;
+            }
+            state.paused = false;
+            document.getElementById('level-up-modal').style.display = 'none';
+        }
+
+        function takeDamage(amount) {
+            state.health = Math.max(0, Math.min(state.maxHealth, state.health - amount));
+            if (player) {
+                player.children.forEach(part => {
+                    if (part.material && part.material.emissive) {
+                        part.material.emissive.set(0xff0000);
+                        setTimeout(() => { if (part.material) part.material.emissive.set(0x000000); }, 100);
+                    }
+                });
+            }
+            playSound('hit');
+            if (state.health <= 0) gameOver();
+        }
+
+        function gameOver() {
+            state.gameOver = true;
+            document.getElementById('death-screen').style.display = 'flex';
+            document.getElementById('final-score').textContent = state.score;
+            const high = localStorage.getItem('vatnik_high_score') || 0;
+            if (state.score > high) {
+                localStorage.setItem('vatnik_high_score', state.score);
+                document.getElementById('death-msg').textContent = "NEW HIGH SCORE! SLAVA UKRAINI!";
+                document.getElementById('easter-egg').textContent = "Truth always wins.";
+            }
+            document.getElementById('high-score-val').textContent = localStorage.getItem('vatnik_high_score');
+        }
+
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight; const d = 20;
+            camera.left = -d * aspect; camera.right = d * aspect; camera.top = d; camera.bottom = -d;
+            camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updatePlayer(delta) {
+            if (state.paused || state.gameOver) return;
+            if (!player || !playerVelocity) return;
+
+            const moveDir = new THREE.Vector3();
+            if (state.keys['w'] || state.keys['arrowup']) moveDir.z -= 1;
+            if (state.keys['s'] || state.keys['arrowdown']) moveDir.z += 1;
+            if (state.keys['a'] || state.keys['arrowleft']) moveDir.x -= 1;
+            if (state.keys['d'] || state.keys['arrowright']) moveDir.x += 1;
+
+            if (moveDir.length() > 0) {
+                moveDir.normalize();
+                const speed = PLAYER_SPEED * (window.PLAYER_SPEED_BOOST || 1);
+                playerVelocity.addScaledVector(moveDir, speed * delta * 5);
+            }
+            playerVelocity.multiplyScalar(FRICTION);
+            player.position.addScaledVector(playerVelocity, delta);
+
+            player.position.x = THREE.MathUtils.clamp(player.position.x, -ARENA_SIZE, ARENA_SIZE);
+            player.position.z = THREE.MathUtils.clamp(player.position.z, -ARENA_SIZE, ARENA_SIZE);
+            player.position.y = 0.8 + Math.sin(Date.now() * 0.005) * 0.1;
+
+            if (camera) {
+                camera.position.x = player.position.x;
+                camera.position.z = player.position.z + 50;
+                camera.lookAt(player.position.x, 0, player.position.z);
+            }
+        }
+
+        function updateUI() {
+            try {
+                const minutes = Math.floor(state.time / 60); const seconds = Math.floor(state.time % 60);
+                const timerEl = document.getElementById('timer');
+                if (timerEl) timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                const hpFill = document.getElementById('health-bar-fill');
+                if (hpFill) hpFill.style.width = `${(state.health / state.maxHealth) * 100}%`;
+
+                const xpFill = document.getElementById('xp-bar-fill');
+                if (xpFill) xpFill.style.width = `${(state.xp / state.maxXp) * 100}%`;
+
+                const lvlText = document.getElementById('level-text');
+                if (lvlText) lvlText.textContent = `LEVEL ${state.level}`;
+
+                const scoreEl = document.getElementById('score');
+                if (scoreEl) scoreEl.textContent = `SCORE: ${state.score}`;
+
+                const sw = weapons.find(w => w.type === 'starlink');
+                if (sw) {
+                    const cd = Math.max(0, sw.cooldown - (state.time - sw.lastFired));
+                    const pill = document.getElementById('starlink-cd');
+                    if (pill) {
+                        if (cd <= 0) { pill.classList.add('ready'); pill.textContent = "STARLINK [READY]"; }
+                        else { pill.classList.remove('ready'); pill.textContent = `STARLINK [${cd.toFixed(1)}s]`; }
+                    }
+                }
+            } catch (err) {
+                console.error('VatnikSurvivors UI Update Error:', err);
+            }
+        }
+
+        let lastSpawn = 0; let lastWave = 0;
+        function animate() {
+            try {
+                requestAnimationFrame(animate);
+                const delta = clock.getDelta();
+
+                if (DEBUG && Math.random() < 0.01) console.log('Frame delta:', delta.toFixed(4));
+
+                if (!state.paused && !state.gameOver) {
+                    state.time += delta;
+                    updatePlayer(delta);
+                    weapons.forEach(w => { if (w.update) w.update(delta); });
+                    const now = Date.now();
+                    if (now - lastSpawn > 1000) { spawnEnemy(); lastSpawn = now; }
+                    if (state.time - lastWave > 30) { spawnWave(); lastWave = state.time; }
+                    updateEnemies(delta);
+                    updateProjectiles(delta);
+                    updateOrbs(delta);
+                    updateParticles(delta);
+                    updateUI();
+                }
+                renderer.render(scene, camera);
+            } catch (err) {
+                console.error('VatnikSurvivors Main Loop Error:', err);
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

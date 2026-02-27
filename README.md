@@ -11,6 +11,15 @@ The entire game is contained within a single `index.html` file. You can be playi
 
 The game works in any modern web browser. Google Chrome, Firefox, or Microsoft Edge are recommended for the best experience.
 
+### One-time Setup for Hosting 🌐
+
+To enable the live deployment at `https://<your-username>.github.io/vatnik-survivors/`, follow these steps on GitHub:
+
+1. Go to your repository **Settings** tab.
+2. Click **Pages** in the left sidebar.
+3. Under **Build and deployment** > **Source**, change it from "Deploy from a branch" to **"GitHub Actions"**.
+4. The game will now deploy automatically on every push! 🚀
+
 ## Controls 🎮
 
 * **WASD or Arrow Keys**: Move your Shiba "Fella".
